@@ -15,20 +15,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-REDDIT_URL = "https://www.reddit.com/r/NepalSocial/comments/1rlxszq/live_nepal_election_2082_live_poll_updates/.json"
-
+url = "https://old.reddit.com/r/NepalSocial/comments/1rlxszq/live_nepal_election_2082_live_poll_updates/.json"
 # -------- Request Schema --------
 class AskRequest(BaseModel):
     prompt: str
 
 def scrape_reddit_post():
-    url = "https://www.reddit.com/r/NepalSocial/comments/1rlxszq/live_nepal_election_2082_live_poll_updates/.json"
 
     headers = {
-        "User-Agent": "ElectionBot/1.0 (by u/example)"
-    }
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+}
 
-    res = requests.get(url, headers=headers)
+    res = requests.get(url, headers=headers, timeout=10)
 
     if res.status_code != 200:
         raise Exception(f"Reddit request failed: {res.status_code} {res.text}")
