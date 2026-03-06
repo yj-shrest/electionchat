@@ -4,10 +4,17 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from google import genai
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 REDDIT_URL = "https://www.reddit.com/r/NepalSocial/comments/1rlxszq/live_nepal_election_2082_live_poll_updates/.json"
 
 # -------- Request Schema --------
