@@ -32,7 +32,7 @@ def scrape_reddit_post():
     
 
     text = post.get("title", "") + "\n" + post.get("selftext", "")
-    print(text)
+    # print(text)
 
     context = text 
 
