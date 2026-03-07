@@ -4,13 +4,28 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from google import genai
 from dotenv import load_dotenv
+import openai
+import os
 
 load_dotenv()
 POST_URL = "https://old.reddit.com/r/NepalSocial/comments/1rlxszq/live_nepal_election_2082_live_poll_updates/.json"
 
 reddit_context = ""
+
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def answer_from_context(prompt, context):
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": f"Reddit post:\n{context}\n\nQuestion: {prompt}"}
+        ],
+        max_tokens=200,
+    )
+    return response['choices'][0]['message']['content']
 
 def scrape_reddit_post():
     try:
@@ -79,19 +94,16 @@ class AskRequest(BaseModel):
 
 @app.post("/ask")
 async def ask(req: AskRequest):
-    # print(reddit_context)
-    client = genai.Client()
+    global reddit_context
 
-    contents = [
-        f"""Answer baseds on the question and the context, No need to do analysis unless asked.
-        if asked about a person or constinuency, only give current vote count with names and party only
-          Context:\n{reddit_context}""",
-        f"User question: {req.prompt}",
-    ]
+    # Build your context as one string
+    context_text = f"""Answer based on the question and the context. No analysis unless asked.
+If asked about a person or constituency, only give current vote count with names and party only.
 
-    response = client.models.generate_content(
-        model="gemini-3-flash-preview",
-        contents=contents,
-    )
+Context:
+{reddit_context}
+"""
+    # Call the function with user question
+    answer = answer_from_context(req.prompt, context_text)
 
-    return {"response": response.text}
+    return {"response": answer}
