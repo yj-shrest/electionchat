@@ -1,29 +1,32 @@
 import requests
 import asyncio
-import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from google import genai
-from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # allow all origins
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+load_dotenv()
 POST_URL = "https://old.reddit.com/r/NepalSocial/comments/1rlxszq/live_nepal_election_2082_live_poll_updates/.json"
 
 reddit_context = ""
 
-
 def scrape_reddit_post():
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(POST_URL, headers=headers, timeout=10)
+        url = "https://www.reddit.com/r/NepalSocial/comments/1rlxszq/live_nepal_election_2082_live_poll_updates/.json"
+
+        headers = {
+            "User-Agent": "election-bot/1.0",
+            "Accept": "application/json"
+        }
+
+        res = requests.get(url, headers=headers, timeout=10)
+
+        if res.status_code != 200:
+            print("Reddit returned:", res.status_code)
+            return reddit_context
+
         data = res.json()
 
         post = data[0]["data"]["children"][0]["data"]
@@ -35,6 +38,7 @@ def scrape_reddit_post():
 
     except Exception as e:
         print("Scrape failed:", e)
+        print("Response preview:", res.text[:200])
         return reddit_context
 
 
@@ -47,11 +51,26 @@ async def refresh_reddit_context():
         await asyncio.sleep(300)  # 5 minutes
 
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global reddit_context
+
     reddit_context = scrape_reddit_post()
-    asyncio.create_task(refresh_reddit_context())
+    task = asyncio.create_task(refresh_reddit_context())
+
+    yield
+
+    task.cancel()
+
+
+app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class AskRequest(BaseModel):
@@ -60,21 +79,17 @@ class AskRequest(BaseModel):
 
 @app.post("/ask")
 async def ask(req: AskRequest):
+    # print(reddit_context)
+    client = genai.Client()
 
-    try:
-        client = genai.Client()
+    contents = [
+        f"Context:\n{reddit_context}",
+        f"User question: {req.prompt}",
+    ]
 
-        contents = [
-            f"Reddit post context:\n{reddit_context}",
-            f"User question: {req.prompt}"
-        ]
+    response = client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=contents,
+    )
 
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview",
-            contents=contents
-        )
-
-        return {"response": response.text}
-
-    except Exception as e:
-        return {"error": str(e)}
+    return {"response": response.text}
