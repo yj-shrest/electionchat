@@ -1,15 +1,15 @@
 import requests
 import asyncio
+import os
 from fastapi import FastAPI
 from pydantic import BaseModel
 from google import genai
-import os
 
 app = FastAPI()
 
-reddit_context = ""
-
 POST_URL = "https://old.reddit.com/r/NepalSocial/comments/1rlxszq/live_nepal_election_2082_live_poll_updates/.json"
+
+reddit_context = ""
 
 
 def scrape_reddit_post():
@@ -52,18 +52,21 @@ class AskRequest(BaseModel):
 
 @app.post("/ask")
 async def ask(req: AskRequest):
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-    client = genai.Client(api_key=gemini_api_key)
+    try:
+        client = genai.Client()
 
-    contents = [
-        f"Context from reddit post:\n{reddit_context}",
-        f"Question: {req.prompt}"
-    ]
+        contents = [
+            f"Reddit post context:\n{reddit_context}",
+            f"User question: {req.prompt}"
+        ]
 
-    response = client.models.generate_content(
-        model="gemini-1.5-pro",
-        contents=contents
-    )
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=contents
+        )
 
-    return {"response": response.text}
+        return {"response": response.text}
+
+    except Exception as e:
+        return {"error": str(e)}
