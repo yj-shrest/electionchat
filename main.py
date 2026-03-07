@@ -83,7 +83,9 @@ async def ask(req: AskRequest):
     client = genai.Client()
 
     contents = [
-        f"Context:\n{reddit_context}",
+        f"""Answer baseds on the question and the context, No need to do analysis unless asked.
+        if asked about a person or constinuency, only give current vote count with names and party only
+          Context:\n{reddit_context}""",
         f"User question: {req.prompt}",
     ]
 
